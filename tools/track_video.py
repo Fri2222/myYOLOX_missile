@@ -20,12 +20,24 @@ class TrackArgs:
         self.mot20 = False
 
 
-def main():
+def make_parser():
+    """定义命令行参数"""
+    parser = argparse.ArgumentParser("ByteTrack+YOLOX Missile Tracker!")
+    parser.add_argument(
+        "-p", "--path", type=str, required=True, help="要测试的视频文件绝对路径"
+    )
+    return parser
+
+
+def main(args):
     # --- 1. 配置参数 ---
-    video_path = r"H:\Missile_Video_Dataset\test\test_25s.mp4"  # 替换为你的视频路径
-    # 推荐直接使用绝对路径，前面加 r 防止转义
+    video_path = args.path  # 从命令行获取视频路径
     ckpt_path = r"H:\Code\YOLOX\YOLOX_outputs\yolox_s_missile\best_ckpt.pth"
     exp_file = r"exps\default\yolox_missile.py"
+
+    if not os.path.exists(video_path):
+        print(f"❌ 错误: 找不到视频文件 {video_path}")
+        return
 
     # --- 2. 初始化 YOLOX 模型 ---
     exp = get_exp(exp_file, None)
@@ -49,13 +61,30 @@ def main():
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     fps = cap.get(cv2.CAP_PROP_FPS)
 
-    # 1. 后缀改成 .avi
-    save_path = os.path.join(r"H:\Code\YOLOX\YOLOX_outputs\yolox_s_missile", "tracked_missile.avi")
-    # 2. 编码器改成 XVID
+    # 💥 【核心修改区域】：构建全新的层级目录结构和元数据TXT记录
+    # 获取类似 Dataset_FixedView_20260312_112629 这样的父文件夹名
+    parent_dir_name = os.path.basename(os.path.dirname(video_path))
+
+    # 定义基础输出主目录
+    base_output_dir = r"H:\Code\YOLOX\YOLOX_outputs\yolox_s_missile\tracked_missile_videos"
+
+    # 拼接出本次专属的独立文件夹，并自动创建（包含多级目录）
+    target_dir = os.path.join(base_output_dir, parent_dir_name)
+    os.makedirs(target_dir, exist_ok=True)
+
+    # 视频保存路径
+    save_path = os.path.join(target_dir, f"tracked_video.avi")
+
+    # 写入含有原视频路径的 txt 文件
+    txt_path = os.path.join(target_dir, "original_source.txt")
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(f"Original Video Absolute Path:\n{os.path.abspath(video_path)}")
+
     vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*"XVID"), fps, (int(width), int(height)))
 
     frame_id = 0
-    print(f"🚀 开始追踪视频...")
+    print(f"🚀 开始追踪视频: {video_path}")
+    print(f"📁 结果文件夹已创建在: {target_dir}")
 
     while True:
         ret_val, frame = cap.read()
@@ -91,8 +120,9 @@ def main():
 
     cap.release()
     vid_writer.release()
-    print(f"🎉 追踪完成！结果已保存至: {save_path}")
+    print(f"🎉 追踪完成！结果已保存至: {target_dir}")
 
 
 if __name__ == "__main__":
-    main()
+    args = make_parser().parse_args()
+    main(args)

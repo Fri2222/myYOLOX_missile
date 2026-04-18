@@ -1,128 +1,180 @@
-import argparse
 import os
-import cv2
 import torch
-import time
+import numpy as np
+import argparse
+import motmetrics as mm
+import cv2
+from loguru import logger
 
-from yolox.exp import get_exp
-from yolox.utils import get_model_info, postprocess
-from demo import Predictor  # 直接复用你已经跑通的预测器
-
-# 导入刚才移植过来的 ByteTrack 追踪器
+# 导入你自己的 ByteTracker (确保里面的卡尔曼滤波已指向你训练好的 KalmanNet)
 from yolox.tracker.byte_tracker import BYTETracker
-
-
-class TrackArgs:
-    def __init__(self, track_thresh=0.1):
-        self.track_thresh = track_thresh  # 极低门槛，绝不漏掉导弹
-        self.track_buffer = 30  # 允许导弹消失几帧再找回
-        self.match_thresh = 0.8
-        self.mot20 = False
+from yolox.utils import setup_logger
 
 
 def make_parser():
-    """定义命令行参数"""
-    parser = argparse.ArgumentParser("ByteTrack+YOLOX Missile Tracker!")
-    parser.add_argument(
-        "-p", "--path", type=str, required=True, help="要测试的视频文件绝对路径"
-    )
+    parser = argparse.ArgumentParser("ByteTrack+KalmanNet 视频追踪与评测引擎")
+
+    # --- 统一对齐 YOLOX 标准参数格式 ---
+    parser.add_argument("-expn", "--experiment-name", type=str, default="yolox_s_missile")
+    parser.add_argument("-d", "--dataset_dir", type=str, default=r"datasets\MOT17_Missile\test", help="测试数据集目录")
+
+    # Tracker 的三大核心超参
+    parser.add_argument("--track_thresh", type=float, default=0.5, help="检测置信度阈值")
+    parser.add_argument("--track_buffer", type=int, default=30, help="丢失找回的最大缓冲帧数")
+    parser.add_argument("--match_thresh", type=float, default=0.8, help="前后帧框匹配容忍度")
+    parser.add_argument("--mot20", dest="mot20", default=False, action="store_true", help="是否使用 MOT20 标准")
+
+    # 附加可视化参数
+    parser.add_argument("--save_video", action="store_true", default=True, help="是否同时渲染并保存带框视频")
     return parser
 
 
-def main(args):
-    # --- 1. 配置参数 ---
-    video_path = args.path  # 从命令行获取视频路径
-    ckpt_path = r"H:\Code\YOLOX\YOLOX_outputs\yolox_s_missile\best_ckpt.pth"
-    exp_file = r"exps\default\yolox_missile.py"
+@logger.catch
+def main():
+    args = make_parser().parse_args()
 
-    if not os.path.exists(video_path):
-        print(f"❌ 错误: 找不到视频文件 {video_path}")
+    if not os.path.exists(args.dataset_dir):
+        print(f"❌ 错误: 找不到测试集目录 {args.dataset_dir}")
         return
 
-    # --- 2. 初始化 YOLOX 模型 ---
-    exp = get_exp(exp_file, None)
-    exp.test_conf = 0.1  # 检测门槛设为0.1
-    exp.nmsthre = 0.4
+    # =========================================================
+    # 💥 核心路径规范：与 eval.py 保持完全一致
+    # 根目录形如: YOLOX_outputs/yolox_s_missile/tracked_missile_videos
+    # =========================================================
+    output_root = os.path.join("YOLOX_outputs", args.experiment_name)
+    tracked_videos_dir = os.path.join(output_root, "tracked_missile_videos")
+    os.makedirs(tracked_videos_dir, exist_ok=True)
 
-    model = exp.get_model()
-    model.cuda()
-    model.eval()
-    ckpt = torch.load(ckpt_path, map_location="cuda")
-    model.load_state_dict(ckpt["model"])
+    # 设置日志
+    setup_logger(output_root, filename="track_eval_log.txt", mode="a")
+    logger.info("Args: {}".format(args))
 
-    predictor = Predictor(model, exp, ("Missile",), None, None, "gpu")
+    accs = []
+    seq_names = []
 
-    # --- 3. 初始化 ByteTrack 追踪器 ---
-    tracker = BYTETracker(TrackArgs(track_thresh=0.1), frame_rate=30)
+    logger.info(f"🚀 开始加载测试集: {args.dataset_dir}")
+    logger.info("-" * 60)
 
-    # --- 4. 视频流处理准备 ---
-    cap = cv2.VideoCapture(video_path)
-    width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-    height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    # 遍历 test 目录下的所有视频序列 (如 Dataset_FixedView_20260312_112629)
+    for seq_name in sorted(os.listdir(args.dataset_dir)):
+        seq_dir = os.path.join(args.dataset_dir, seq_name)
+        det_path = os.path.join(seq_dir, "det", "det.txt")
+        gt_path = os.path.join(seq_dir, "gt", "gt.txt")
 
-    # 💥 【核心修改区域】：构建全新的层级目录结构和元数据TXT记录
-    # 获取类似 Dataset_FixedView_20260312_112629 这样的父文件夹名
-    parent_dir_name = os.path.basename(os.path.dirname(video_path))
+        if not os.path.isdir(seq_dir) or not os.path.exists(det_path) or not os.path.exists(gt_path):
+            continue
 
-    # 定义基础输出主目录
-    base_output_dir = r"H:\Code\YOLOX\YOLOX_outputs\yolox_s_missile\tracked_missile_videos"
+        logger.info(f"⏳ 正在预测序列: {seq_name} ...")
 
-    # 拼接出本次专属的独立文件夹，并自动创建（包含多级目录）
-    target_dir = os.path.join(base_output_dir, parent_dir_name)
-    os.makedirs(target_dir, exist_ok=True)
+        # 💥 为当前视频序列创建专属子目录
+        # 形如: .../tracked_missile_videos/Dataset_FixedView_20260312_112629
+        seq_output_dir = os.path.join(tracked_videos_dir, seq_name)
+        os.makedirs(seq_output_dir, exist_ok=True)
+        pred_path = os.path.join(seq_output_dir, "pred.txt")
 
-    # 视频保存路径
-    save_path = os.path.join(target_dir, f"tracked_video.avi")
+        tracker = BYTETracker(args, frame_rate=60)
 
-    # 写入含有原视频路径的 txt 文件
-    txt_path = os.path.join(target_dir, "original_source.txt")
-    with open(txt_path, "w", encoding="utf-8") as f:
-        f.write(f"Original Video Absolute Path:\n{os.path.abspath(video_path)}")
+        # 读取检测数据
+        dets = np.loadtxt(det_path, delimiter=',')
+        frames = np.unique(dets[:, 0]) if len(dets) > 0 else []
+        results = []
 
-    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*"XVID"), fps, (int(width), int(height)))
+        # 存储每一帧的跟踪目标用于后续画图
+        track_vis_data = {}
 
-    frame_id = 0
-    print(f"🚀 开始追踪视频: {video_path}")
-    print(f"📁 结果文件夹已创建在: {target_dir}")
+        # 逐帧推进追踪
+        for frame_id in range(1, int(max(frames)) + 1) if len(frames) > 0 else []:
+            frame_dets = dets[dets[:, 0] == frame_id]
 
-    while True:
-        ret_val, frame = cap.read()
-        if not ret_val:
-            break
+            if len(frame_dets) > 0:
+                bboxes = frame_dets[:, 2:6]
+                scores = frame_dets[:, 6]
 
-        # [检测阶段]
-        outputs, img_info = predictor.inference(frame)
+                detections = np.stack([
+                    bboxes[:, 0], bboxes[:, 1],
+                    bboxes[:, 0] + bboxes[:, 2], bboxes[:, 1] + bboxes[:, 3],
+                    scores
+                ], axis=1)
 
-        # [追踪阶段]
-        if outputs[0] is not None:
-            online_targets = tracker.update(outputs[0], [img_info['height'], img_info['width']], exp.test_size)
+                online_targets = tracker.update(detections, [1080, 1920], [1080, 1920])
+            else:
+                online_targets = []
 
-            # 画框和 ID
+            track_vis_data[frame_id] = []
             for t in online_targets:
-                tlwh = t.tlwh  # 取出边界框坐标
-                tid = t.track_id  # 取出专属 ID
-                score = t.score  # 置信度
+                tlwh = t.tlwh
+                results.append(
+                    f"{frame_id},{t.track_id},{tlwh[0]:.2f},{tlwh[1]:.2f},{tlwh[2]:.2f},{tlwh[3]:.2f},{t.score:.2f},-1,-1,-1\n")
+                track_vis_data[frame_id].append((t.track_id, tlwh, t.score))
 
-                x1, y1, w, h = int(tlwh[0]), int(tlwh[1]), int(tlwh[2]), int(tlwh[3])
+        # 1. 保存 pred.txt 预测结果
+        with open(pred_path, 'w') as f:
+            f.writelines(results)
 
-                # 画矩形框
-                cv2.rectangle(frame, (x1, y1), (x1 + w, y1 + h), (0, 0, 255), 2)
-                # 写上 Missile 和 ID 号
-                cv2.putText(frame, f"Missile ID:{tid} {score:.2f}", (x1, y1 - 5),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        # 2. [新增] 视频渲染模块：寻找原视频并渲染追踪框
+        if args.save_video:
+            original_video_path = os.path.join(seq_dir, "flight_video.avi")
+            if os.path.exists(original_video_path):
+                out_video_path = os.path.join(seq_output_dir, f"tracked_{seq_name}.avi")
+                cap = cv2.VideoCapture(original_video_path)
+                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                vid_writer = cv2.VideoWriter(out_video_path, cv2.VideoWriter_fourcc(*"XVID"), fps, (width, height))
 
-        # 写入视频
-        vid_writer.write(frame)
-        frame_id += 1
-        if frame_id % 30 == 0:
-            print(f"✅ 已处理 {frame_id} 帧...")
+                # 随机生成颜色表
+                np.random.seed(42)
+                colors = np.random.randint(0, 255, size=(100, 3), dtype=np.uint8)
 
-    cap.release()
-    vid_writer.release()
-    print(f"🎉 追踪完成！结果已保存至: {target_dir}")
+                f_id = 1
+                while True:
+                    ret, frame = cap.read()
+                    if not ret: break
+
+                    if f_id in track_vis_data:
+                        for tid, tlwh, score in track_vis_data[f_id]:
+                            color = colors[tid % 100].tolist()
+                            cv2.rectangle(frame, (int(tlwh[0]), int(tlwh[1])),
+                                          (int(tlwh[0] + tlwh[2]), int(tlwh[1] + tlwh[3])), color, 3)
+                            label = f"ID:{tid} [{score:.2f}]"
+                            cv2.putText(frame, label, (int(tlwh[0]), int(tlwh[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                                        color, 2)
+
+                    vid_writer.write(frame)
+                    f_id += 1
+
+                vid_writer.release()
+                cap.release()
+                logger.info(f"🎞️ 渲染完成，视频存放于: {out_video_path}")
+
+        # 3. 立即计算当前序列的 MOTA / IDF1 差异矩阵
+        gt = mm.io.loadtxt(gt_path, fmt="mot15-2D", min_confidence=1)
+        ts = mm.io.loadtxt(pred_path, fmt="mot15-2D")
+        acc = mm.utils.compare_to_groundtruth(gt, ts, 'iou', distth=0.5)
+
+        accs.append(acc)
+        seq_names.append(seq_name)
+
+    # 4. 生成最终的全局性能评估报告
+    if len(accs) == 0:
+        logger.error("❌ 没有找到任何有效的测试序列！")
+        return
+
+    logger.info("\n" + "=" * 90)
+    logger.info("🎯 KalmanNet 导弹目标跟踪全局性能报告")
+    logger.info("=" * 90)
+
+    mh = mm.metrics.create()
+    metrics_list = ['num_frames', 'mota', 'idf1', 'motp', 'num_switches', 'num_false_positives', 'num_misses']
+
+    summary = mh.compute_many(accs, metrics=metrics_list, names=seq_names, generate_overall=True)
+    strsummary = mm.io.render_summary(summary, formatters=mh.formatters, namemap=mm.io.motchallenge_metric_names)
+
+    # 打印给用户看
+    print(strsummary)
+    # 写入日志
+    logger.info("\n" + strsummary)
 
 
 if __name__ == "__main__":
-    args = make_parser().parse_args()
-    main(args)
+    main()

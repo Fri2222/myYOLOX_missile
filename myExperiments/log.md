@@ -11,7 +11,8 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Exp-001** | 2026-03-02 | `导弹数据集训练 | "H:\Dataset\Missle\Missile Subset.v3i.coco" |
 | **Exp-002** | 2026-04-16 | `增加自己生成的导弹数据集 | " H:\Code\YOLOX\datasets\MOT17_Missile" |
-| **Exp-002** | 2026-04-18 | `| **Exp-002** | 2026-04-16 | `增加自己生成的导弹数据集 | " H:\Code\YOLOX\datasets\MOT17_Missile" | | |
+| **Exp-003** | 2026-04-18 | `Exp-003 将yolox_missile工程的Exp-0015进行移植；使用自己生成的数据集进行训练与性能评估 | | | |
+| **Exp-004** | 2026-04-18 | `Exp-004 使用demo_track追踪视频，效果不佳；修改视频跟踪后保存目录 | | | |
 
 
 
@@ -91,8 +92,9 @@ per class AR:
 - **Code Version**: `Exp-003 将yolox_missile工程的Exp-0015进行移植；使用自己生成的数据集进行训练与性能评估`
 					备注：数据集地址 "H:\Dataset\Missle\Missile Subset.v3i.coco"
 - **Command**: `
-				python gen_kalman_data.py 
+				python gen_kalman_data.py      //生成数据集
 				python train_kalmannet.py
+				//进行性能评估
 				python tools/track.py --track_thresh 0.5 --track_buffer 30 --match_thresh 0.8
 				
 
@@ -122,3 +124,18 @@ MOT17-98-Missile3D         180 87.1% 55.6% 0.220   2  3  35
 MOT17-99-Missile3D         178 89.8% 94.6% 0.189   0  2  32
 OVERALL                   3366 88.2% 80.1% 0.205  40 29 810
 ==========================================================================================
+
+###################################################################################################################
+
+
+## 详细数据备份
+### Exp-004 
+- **Code Version**: `Exp-004 使用demo_track追踪视频，效果不佳；修改视频跟踪后保存目录 `
+					备注：数据集地址 "H:\Dataset\Missle\Missile Subset.v3i.coco"
+- **Command**: `
+				python gen_kalman_data.py      //生成数据集
+				python train_kalmannet.py
+				//进行性能评估
+				python tools/track.py --track_thresh 0.5 --track_buffer 30 --match_thresh 0.8
+				python tools/demo_track.py -f exps/default/yolox_missile.py -c YOLOX_outputs/yolox_s_missile/best_ckpt.pth --path "视频地址" --device gpu --fp16 --track_thresh 0.5 --track_buffer 30 --match_thresh 0.9
+				

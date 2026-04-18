@@ -12,7 +12,7 @@ import cv2
 import torch
 
 from yolox.data.data_augment import ValTransform
-from yolox.data.datasets import COCO_CLASSES
+COCO_CLASSES = ("missile",)
 from yolox.exp import get_exp
 from yolox.utils import fuse_model, get_model_info, postprocess, vis
 
@@ -102,7 +102,7 @@ class Predictor(object):
         self,
         model,
         exp,
-        cls_names=COCO_CLASSES,
+        cls_names=None,      # 改为 None，不从外部导入
         trt_file=None,
         decoder=None,
         device="cpu",
@@ -110,7 +110,7 @@ class Predictor(object):
         legacy=False,
     ):
         self.model = model
-        self.cls_names = cls_names
+        self.cls_names = ("missile",)
         self.decoder = decoder
         self.num_classes = exp.num_classes
         self.confthre = exp.test_conf
@@ -118,7 +118,7 @@ class Predictor(object):
         self.test_size = exp.test_size
         self.device = device
         self.fp16 = fp16
-        self.preproc = ValTransform(legacy=legacy)
+        self.preproc = ValTransform()
         if trt_file is not None:
             from torch2trt import TRTModule
 
@@ -156,11 +156,26 @@ class Predictor(object):
         with torch.no_grad():
             t0 = time.time()
             outputs = self.model(img)
+            with torch.no_grad():
+                t0 = time.time()
+                outputs = self.model(img)
+
+                # --- 新加的暴力调试代码 ---
+                if self.decoder is not None:
+                    temp_outputs = self.decoder(outputs, dtype=outputs.type())
+                else:
+                    temp_outputs = outputs
+
+                # 看看全图几万个预测点里，最高分是多少，对应哪个类别
+                max_conf, _ = torch.max(temp_outputs[:, :, 4] * torch.max(temp_outputs[:, :, 5:], dim=2)[0], dim=1)
+                print(f"--- 暴力调试 ---")
+                print(f"全图最高综合得分: {max_conf.item():.6f}")
+                # -----------------------
             if self.decoder is not None:
                 outputs = self.decoder(outputs, dtype=outputs.type())
             outputs = postprocess(
                 outputs, self.num_classes, self.confthre,
-                self.nmsthre, class_agnostic=True
+                self.nmsthre
             )
             logger.info("Infer time: {:.4f}s".format(time.time() - t0))
         return outputs, img_info
@@ -179,7 +194,9 @@ class Predictor(object):
 
         cls = output[:, 6]
         scores = output[:, 4] * output[:, 5]
-
+        print(f"DEBUG: 检测到目标数量: {len(output)}, 最高得分: {output[:, 4].max() if len(output) > 0 else '无'}")
+        if len(output) > 0:
+            print(f"DEBUG: 预测的类别 ID 分布: {output[:, 5].unique()}")
         vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
         return vis_res
 

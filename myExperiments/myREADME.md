@@ -9,6 +9,11 @@
 1.用训练完成的权重文件识别视频demo
 python tools\track_video.py -p "视频地址"
 
+2.测试前端YOLOX识别图片
+
+python tools/demo.py image -f exps/default/yolox_missile.py -c YOLOX_outputs/yolox_s_missile/best_ckpt.pth --path "图片地址" --conf 0.25 --save_result --device gpu --fp16 
+
+
 ####################################################################################################################
 anaconda命令
 

@@ -69,7 +69,7 @@ class STrack(BaseTrack):
         self.start_frame = frame_id
 
     def re_activate(self, new_track, frame_id, new_id=False):
-        self.mean, self.covariance = self.kalman_filter.update(
+        self.mean, self.covariance, *_ = self.kalman_filter.update(
             self.mean, self.covariance, self.tlwh_to_xyah(new_track.tlwh)
         )
         self.tracklet_len = 0
@@ -95,13 +95,13 @@ class STrack(BaseTrack):
         score = new_track.score
 
         # === 修改后KF (带参数) ===
-        self.mean, self.covariance = self.kalman_filter.update(
+        self.mean, self.covariance, *_ = self.kalman_filter.update(
             self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh),
             confidence=score  # <--- 原始版必须删掉这行！
         )
 
         # === 修改：原始KF (原始纯净版) ===
-        # self.mean, self.covariance = self.kalman_filter.update(
+        # self.mean, self.covariance, *_ = self.kalman_filter.update(
         #     self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh)
         # )
         #===========================

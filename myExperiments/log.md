@@ -13,6 +13,8 @@
 | **Exp-002** | 2026-04-16 | `增加自己生成的导弹数据集 | " H:\Code\YOLOX\datasets\MOT17_Missile" |
 | **Exp-003** | 2026-04-18 | `Exp-003 将yolox_missile工程的Exp-0015进行移植；使用自己生成的数据集进行训练与性能评估 | | | |
 | **Exp-004** | 2026-04-18 | `Exp-004 使用demo_track追踪视频，效果不佳；修改视频跟踪后保存目录 | | | |
+| **Exp-005** | 2026-04-19 | `Exp-005 重新训练yolox检测器，检测效果一般，小目标容易漏检 | | | |
+| **Exp-006** | 2026-04-19 | `Exp-006 重新训练yolox检测器，检测效果一般，目标会重复检测 | | | |
 
 
 
@@ -139,3 +141,35 @@ OVERALL                   3366 88.2% 80.1% 0.205  40 29 810
 				python tools/track.py --track_thresh 0.5 --track_buffer 30 --match_thresh 0.8
 				python tools/demo_track.py -f exps/default/yolox_missile.py -c YOLOX_outputs/yolox_s_missile/best_ckpt.pth --path "视频地址" --device gpu --fp16 --track_thresh 0.5 --track_buffer 30 --match_thresh 0.9
 				
+###################################################################################################################
+
+
+## 详细数据备份
+### Exp-005 
+- **Code Version**: `Exp-005 重新训练yolox检测器，检测效果一般，小目标容易漏检 `
+					备注：数据集地址 "H:\Dataset\Missle\--.v1i.coco"
+- **Command**: `
+				python gen_kalman_data.py      //生成数据集
+				python train_kalmannet.py
+				//进行性能评估
+				python fix_labels.py 
+				python clean_dataset.py
+				python tools/track.py --track_thresh 0.5 --track_buffer 30 --match_thresh 0.8
+				python tools/demo_track.py -f exps/default/yolox_missile.py -c YOLOX_outputs/yolox_s_missile/best_ckpt.pth --path "视频地址" --device gpu --fp16 --track_thresh 0.5 --track_buffer 30 --match_thresh 0.9
+				
+###################################################################################################################
+
+
+## 详细数据备份
+### Exp-006 
+- **Code Version**: `Exp-006 重新训练yolox检测器，检测效果一般，目标会重复检测 `
+					备注：数据集地址 "H:\Dataset\Missle\--.v1i.coco"
+- **Command**: `
+				python gen_kalman_data.py      //生成数据集
+				python train_kalmannet.py
+				//进行性能评估
+				python fix_labels.py 
+				python clean_dataset.py
+				python tools/track.py --track_thresh 0.5 --track_buffer 30 --match_thresh 0.8
+				python tools/demo_track.py -f exps/default/yolox_missile.py -c YOLOX_outputs/yolox_s_missile/best_ckpt.pth --path "视频地址" --device gpu --fp16 --track_thresh 0.5 --track_buffer 30 --match_thresh 0.9
+		

@@ -1,7 +1,7 @@
 import json
 import os
 
-base_path = r"H:\Dataset\Missle\Missile Detection.v9-sanket-edited.coco\annotations"
+base_path = r"H:\Dataset\Missle\--.v1i.coco\annotations"
 files = ["instances_train2017.json", "instances_val2017.json"]
 
 for file in files:

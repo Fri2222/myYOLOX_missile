@@ -18,7 +18,8 @@
 | **Exp-007** | 2026-04-19 | `Exp-007 重新训练yolox检测器，检测效果一般，容易漏检，1.4--.v1i.coco | | | |
 | **Exp-007** | 2026-04-20 | `Exp-008 重新训练yolox检测器，roboflow增加图片，1.5--.v1i.coco  | | | |
 | **** | 2026-05-1 | `进行导弹数据集一致性实验前的备份"  | | | |
-| **Exp-009** | 2026-04-20 | `Exp-009 在个人导弹数据集中评估kalmannet| 81.877 | 88.928 |67.777 |
+| **Exp-009** | 2026-05-01 | `Exp-009 在个人导弹数据集中评估kalmannet| 81.877 | 88.928 |67.777 |
+| **Exp-010** | 2026-05-01 | `Exp-010 在个人导弹数据集中评估原版KF| 82.848  | 89.667  |67.814 |
 
 
 
@@ -243,6 +244,8 @@ per class AR:
 - **Code Version**: `Exp-009 在个人导弹数据集中评估kalmannet| 81.877 | 88.928 |67.777 |
 					备注：数据集地址 "H:\Code\YOLOX\datasets\MOT17_Missile"
 - **Command**: 
+				python tools/run_tracker_sim.py --seq MOT17-01-Missile3D
+				python TrackEval/scripts/run_mot_challenge.py --BENCHMARK MOT17-Missile --SPLIT_TO_EVAL train --TRACKERS_TO_EVAL YOLOX_ByteTrack --METRICS HOTA CLEAR Identity --USE_PARALLEL False --NUM_PARALLEL_CORES 1
 
 HOTA: YOLOX_ByteTrack-pedestrian   HOTA      DetA      AssA      DetRe     DetPr     AssRe     AssPr     LocA      OWTA      HOTA(0)   LocA(0)   HOTALocA(0)
 MOT17-01-Missile3D                 67.777    68.629    66.944    71.419    84.879    69.38     85.72     85.319    69.101    82.405    83.137    68.51
@@ -269,3 +272,43 @@ Identity.eval_sequence                                                 0.0033 se
 Count.eval_sequence                                                    0.0000 sec
 eval_sequence                                                          0.1325 sec
 Evaluator.evaluate                                                     1.5261 sec
+
+
+###################################################################################################################
+
+
+## 详细数据备份
+### Exp-010
+- **Code Version**: `Exp-010 在个人导弹数据集中评估原版KF| 82.848  | 89.667  |67.814 |
+					备注：数据集地址 "H:\Code\YOLOX\datasets\MOT17_Missile"
+- **Command**: 
+				python tools/run_tracker_sim.py --seq MOT17-01-Missile3D 
+				>copy /Y H:\Code\YOLOX\MOT17-01-Missile3D.txt H:\Code\YOLOX\TrackEval\data\trackers\mot_challenge\MOT17-Missile-train\YOLOX_ByteTrack\data\
+				python TrackEval/scripts/run_mot_challenge.py --BENCHMARK MOT17-Missile --SPLIT_TO_EVAL train --TRACKERS_TO_EVAL YOLOX_ByteTrack --METRICS HOTA CLEAR Identity --USE_PARALLEL False --NUM_PARALLEL_CORES 1
+
+
+HOTA: YOLOX_ByteTrack-pedestrian   HOTA      DetA      AssA      DetRe     DetPr     AssRe     AssPr     LocA      OWTA      HOTA(0)   LocA(0)   HOTALocA(0)
+MOT17-01-Missile3D                 67.814    68.577    67.064    71.3      84.09     69.587    84.635    84.694    69.093    83.467    82.371    68.753
+COMBINED                           67.814    68.577    67.064    71.3      84.09     69.587    84.635    84.694    69.093    83.467    82.371    68.753
+
+CLEAR: YOLOX_ByteTrack-pedestrian  MOTA      MOTP      MODA      CLR_Re    CLR_Pr    MTR       PTR       MLR       sMOTA     CLR_TP    CLR_FN    CLR_FP    IDSW      MT        PT        ML        Frag
+MOT17-01-Missile3D                 82.848    82.546    84.142    84.466    99.618    50        50        0         68.105    261       48        1         4         1         1         0         15
+COMBINED                           82.848    82.546    84.142    84.466    99.618    50        50        0         68.105    261       48        1         4         1         1         0         15
+
+Identity: YOLOX_ByteTrack-pedestrianIDF1      IDR       IDP       IDTP      IDFN      IDFP
+MOT17-01-Missile3D                 89.667    82.848    97.71     256       53        6
+COMBINED                           89.667    82.848    97.71     256       53        6
+
+Count: YOLOX_ByteTrack-pedestrian  Dets      GT_Dets   IDs       GT_IDs
+MOT17-01-Missile3D                 262       309       7         2
+COMBINED                           262       309       7         2
+
+Timing analysis:
+MotChallenge2DBox.get_raw_seq_data                                     0.0149 sec
+MotChallenge2DBox.get_preprocessed_seq_data                            0.0461 sec
+HOTA.eval_sequence                                                     0.0545 sec
+CLEAR.eval_sequence                                                    0.0091 sec
+Identity.eval_sequence                                                 0.0041 sec
+Count.eval_sequence                                                    0.0000 sec
+eval_sequence                                                          0.1303 sec
+Evaluator.evaluate    

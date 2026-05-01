@@ -20,6 +20,7 @@
 | **** | 2026-05-1 | `进行导弹数据集一致性实验前的备份"  | | | |
 | **Exp-009** | 2026-05-01 | `Exp-009 在个人导弹数据集中评估kalmannet| 81.877 | 88.928 |67.777 |
 | **Exp-010** | 2026-05-01 | `Exp-010 在个人导弹数据集中评估原版KF| 82.848  | 89.667  |67.814 |
+| **Exp-011** | 2026-05-01 | `Exp-011 在个人导弹数据集中评估yolo_missile工程的kalmannet 架构3| -34.951  | 0.94787  |0.94787 |
 
 
 
@@ -312,3 +313,44 @@ Identity.eval_sequence                                                 0.0041 se
 Count.eval_sequence                                                    0.0000 sec
 eval_sequence                                                          0.1303 sec
 Evaluator.evaluate    
+
+
+###################################################################################################################
+
+
+## 详细数据备份
+### Exp-010
+- **Code Version**: `Exp-010 在个人导弹数据集中评估yolo_missile工程的kalmannet 架构3| -34.951  | 0.94787  |0.94787 |
+					备注：数据集地址 "H:\Code\YOLOX\datasets\MOT17_Missile"
+- **Command**: 
+				python tools/run_tracker_sim.py --seq MOT17-01-Missile3D 
+				>copy /Y H:\Code\YOLOX\MOT17-01-Missile3D.txt H:\Code\YOLOX\TrackEval\data\trackers\mot_challenge\MOT17-Missile-train\YOLOX_ByteTrack\data\
+				python TrackEval/scripts/run_mot_challenge.py --BENCHMARK MOT17-Missile --SPLIT_TO_EVAL train --TRACKERS_TO_EVAL YOLOX_ByteTrack --METRICS HOTA CLEAR Identity --USE_PARALLEL False --NUM_PARALLEL_CORES 1
+
+
+
+HOTA: YOLOX_ByteTrack-pedestrian   HOTA      DetA      AssA      DetRe     DetPr     AssRe     AssPr     LocA      OWTA      HOTA(0)   LocA(0)   HOTALocA(0)
+MOT17-01-Missile3D                 0.94787   0.92358   0.62003   1.2434    3.4001    0.62327   56.551    69.718    0.82624   1.1493    47.464    0.54549
+COMBINED                           0.71145   0.92358   0.62003   1.2434    3.4001    0.62327   56.551    69.718    0.82624   1.1493    47.464    0.54549
+
+CLEAR: YOLOX_ByteTrack-pedestrian  MOTA      MOTP      MODA      CLR_Re    CLR_Pr    MTR       PTR       MLR       sMOTA     CLR_TP    CLR_FN    CLR_FP    IDSW      MT        PT        ML        Frag
+MOT17-01-Missile3D                 -34.951   70.066    -34.628   0.97087   2.6549    0         0         100       -35.242   3         306       110       1         0         0         2         1
+COMBINED                           -34.951   70.066    -34.628   0.97087   2.6549    0         0         100       -35.242   3         306       110       1         0         0         2         1
+
+Identity: YOLOX_ByteTrack-pedestrianIDF1      IDR       IDP       IDTP      IDFN      IDFP
+MOT17-01-Missile3D                 0.94787   0.64725   1.7699    2         307       111
+COMBINED                           0.94787   0.64725   1.7699    2         307       111
+
+Count: YOLOX_ByteTrack-pedestrian  Dets      GT_Dets   IDs       GT_IDs
+MOT17-01-Missile3D                 113       309       110       2
+COMBINED                           113       309       110       2
+
+Timing analysis:
+MotChallenge2DBox.get_raw_seq_data                                     0.0141 sec
+MotChallenge2DBox.get_preprocessed_seq_data                            0.0273 sec
+HOTA.eval_sequence                                                     0.0325 sec
+CLEAR.eval_sequence                                                    0.0044 sec
+Identity.eval_sequence                                                 0.0040 sec
+Count.eval_sequence                                                    0.0000 sec
+eval_sequence                                                          0.0839 sec
+Evaluator.evaluate                                                     1.1135 sec

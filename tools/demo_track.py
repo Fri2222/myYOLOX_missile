@@ -36,14 +36,16 @@ def main():
     # 1. 核心路径解析与归档规范逻辑
     # =========================================================
     abs_video_path = os.path.abspath(args.path)
-    # 获取视频所在的父文件夹名称 (如: Dataset_FixedView_20260416_100030)
     source_folder_name = os.path.basename(os.path.dirname(abs_video_path))
 
     output_base_root = r"H:\Code\YOLOX\YOLOX_outputs\yolox_s_missile\tracked_missile_videos"
     final_save_dir = os.path.join(output_base_root, source_folder_name)
     os.makedirs(final_save_dir, exist_ok=True)
 
-    video_save_path = os.path.join(final_save_dir, "tracked_" + os.path.basename(abs_video_path))
+    # 💡 核心修复 1：强行剥离原视频的 .mp4 后缀，锁死输出为 .avi！
+    original_name_without_ext = os.path.splitext(os.path.basename(abs_video_path))[0]
+    video_save_path = os.path.join(final_save_dir, f"tracked_{original_name_without_ext}.avi")
+
     txt_save_path = os.path.join(final_save_dir, "original_source.txt")
 
     # =========================================================
@@ -61,14 +63,21 @@ def main():
     if args.fp16:
         model = model.half()
 
-    # =========================================================
-    # 3. 挂载神经元大脑 (BYTETracker + KalmanNet)
-    # =========================================================
     tracker = BYTETracker(args, frame_rate=60)
     preproc = ValTransform(legacy=False)
 
-    # 4. 视频流准备
+    # =========================================================
+    # 3. 视频流准备与致命错误拦截
+    # =========================================================
     cap = cv2.VideoCapture(abs_video_path)
+
+    # 💡 核心修复 2：如果 OpenCV 读不到视频，立刻大声报错并终止！
+    if not cap.isOpened():
+        logger.error(f"❌ 致命错误：OpenCV 无法打开视频！")
+        logger.error(f"👉 请检查此路径是否完全正确（有没有少斜杠或拼错字）：{abs_video_path}")
+        logger.error(f"👉 或者去文件夹里看看，这个原始视频本身是不是已经损坏（0字节）了？")
+        return
+
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -82,7 +91,8 @@ def main():
     frame_id = 0
     while True:
         ret, frame = cap.read()
-        if not ret: break
+        if not ret:
+            break
 
         # --- A. YOLOX 视觉提取 ---
         img, _ = preproc(frame, None, exp.test_size)
@@ -91,26 +101,20 @@ def main():
 
         with torch.no_grad():
             outputs = model(img)
-            # outputs 包含了被 NMS 过滤后的预测框，此时是 640x640 尺度
             outputs = postprocess(outputs, exp.num_classes, exp.test_conf, exp.nmsthre, class_agnostic=True)
 
-        # --- B. Tracker 状态更新 (极简纯净模式) ---
+        # --- B. Tracker 状态更新 ---
         if outputs[0] is not None:
-            # 💡 核心奥义：直接将 YOLOX 原始 Tensor 喂给 tracker！
-            # tracker 内部自动拉伸到 1920x1080 -> 传给 KalmanFilter
-            # KalmanFilter 内部自动归一化 0~1 -> 神经网络前向传播 -> 还原为 1920x1080 像素误差
             online_targets = tracker.update(outputs[0], [height, width], exp.test_size)
         else:
             online_targets = []
 
         # --- C. 画图渲染 ---
         for t in online_targets:
-            tlwh = t.tlwh  # 这里吐出来的直接就是 1920x1080 的真实像素坐标
+            tlwh = t.tlwh
             tid = t.track_id
             score = t.score
-
             color = colors[tid % 100].tolist()
-            # 由于已经是真实像素，直接强转 int() 即可画图
             cv2.rectangle(frame, (int(tlwh[0]), int(tlwh[1])), (int(tlwh[0] + tlwh[2]), int(tlwh[1] + tlwh[3])), color,
                           3)
             cv2.putText(frame, f"ID:{tid} [{score:.2f}]", (int(tlwh[0]), int(tlwh[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX,
@@ -120,9 +124,6 @@ def main():
         frame_id += 1
         if frame_id % 30 == 0: logger.info(f"▶️ 已处理 {frame_id} 帧")
 
-    # =========================================================
-    # 5. 生成原始路径溯源文件
-    # =========================================================
     with open(txt_save_path, "w", encoding="utf-8") as f:
         f.write("Original Video Absolute Path:\n")
         f.write(abs_video_path)
@@ -130,9 +131,8 @@ def main():
     vid_writer.release()
     cap.release()
     logger.info("-" * 60)
-    logger.info(f"🎉 任务完成！")
-    logger.info(f"📹 追踪视频: {video_save_path}")
-    logger.info(f"📄 溯源文件: {txt_save_path}")
+    logger.info(f"🎉 任务完成！共处理了 {frame_id} 帧。")
+    logger.info(f"📹 追踪视频 (AVI格式): {video_save_path}")
 
 
 if __name__ == '__main__':

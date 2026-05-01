@@ -13,6 +13,8 @@ python tools\track_video.py -p "视频地址"
 
 python tools/demo.py image -f exps/default/yolox_missile.py -c YOLOX_outputs/yolox_s_missile/best_ckpt.pth --path "图片地址" --conf 0.25 --save_result --device gpu --fp16 
 
+3.训练YOLOX检测器
+python tools/train.py -f exps/default/yolox_missile_v1.py -d 1 -b 8 --fp16 -o -c YOLOX_outputs/yolox_missile_v1/best_ckpt.pth
 
 ####################################################################################################################
 anaconda命令

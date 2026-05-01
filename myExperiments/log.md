@@ -15,6 +15,8 @@
 | **Exp-004** | 2026-04-18 | `Exp-004 使用demo_track追踪视频，效果不佳；修改视频跟踪后保存目录 | | | |
 | **Exp-005** | 2026-04-19 | `Exp-005 重新训练yolox检测器，检测效果一般，小目标容易漏检 | | | |
 | **Exp-006** | 2026-04-19 | `Exp-006 重新训练yolox检测器，检测效果一般，目标会重复检测 | | | |
+| **Exp-007** | 2026-04-19 | `Exp-007 重新训练yolox检测器，检测效果一般，容易漏检，1.4--.v1i.coco | | | |
+| **Exp-007** | 2026-04-20 | `Exp-008 重新训练yolox检测器，roboflow增加图片，1.5--.v1i.coco  | | | |
 
 
 
@@ -173,3 +175,58 @@ OVERALL                   3366 88.2% 80.1% 0.205  40 29 810
 				python tools/track.py --track_thresh 0.5 --track_buffer 30 --match_thresh 0.8
 				python tools/demo_track.py -f exps/default/yolox_missile.py -c YOLOX_outputs/yolox_s_missile/best_ckpt.pth --path "视频地址" --device gpu --fp16 --track_thresh 0.5 --track_buffer 30 --match_thresh 0.9
 		
+###################################################################################################################
+
+
+## 详细数据备份
+### Exp-007 
+- **Code Version**: `Exp-007 重新训练yolox检测器，检测效果一般，容易漏检，1.4--.v1i.coco | | | |
+					备注：数据集地址 "H:\Dataset\Missle\--.v1i.coco"
+- **Command**: `
+				python gen_kalman_data.py      //生成数据集
+				python train_kalmannet.py
+				//进行性能评估
+				python fix_labels.py 
+				python clean_dataset.py
+				python tools/track.py --track_thresh 0.5 --track_buffer 30 --match_thresh 0.8
+				python tools/demo_track.py -f exps/default/yolox_missile.py -c YOLOX_outputs/yolox_s_missile/best_ckpt.pth --path "视频地址" --device gpu --fp16 --track_thresh 0.5 --track_buffer 30 --match_thresh 0.9
+
+###################################################################################################################
+
+
+## 详细数据备份
+### Exp-008
+- **Code Version**: `Exp-008 重新训练yolox检测器，roboflow增加图片，1.5--.v1i.coco | | | |
+					备注：数据集地址 "H:\Dataset\Missle\--.v1i.coco"
+- **Command**: `
+				python gen_kalman_data.py      //生成数据集
+				python train_kalmannet.py
+				//进行性能评估
+				python fix_labels.py 
+				python clean_dataset.py
+				python tools/track.py --track_thresh 0.5 --track_buffer 30 --match_thresh 0.8
+				python tools/demo_track.py -f exps/default/yolox_missile.py -c YOLOX_outputs/yolox_s_missile/best_ckpt.pth --path "视频地址" --device gpu --fp16 --track_thresh 0.5 --track_buffer 30 --match_thresh 0.9
+		
+		
+		
+Average forward time: 8.57 ms, Average NMS time: 3.09 ms, Average inference time: 11.66 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.500
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.871
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.528
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.253
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.416
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.552
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.440
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.589
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.592
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.412
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.482
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.644
+per class AP:
+| class   | AP     |
+|:--------|:-------|
+| missile | 49.978 |
+per class AR:
+| class   | AR     |
+|:--------|:-------|
+| missile | 59.181 |

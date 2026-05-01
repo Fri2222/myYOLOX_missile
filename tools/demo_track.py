@@ -48,6 +48,9 @@ def main():
 
     txt_save_path = os.path.join(final_save_dir, "original_source.txt")
 
+    # 💡 新增：定义 TrackEval 格式数据保存路径 (如 MOT17-01-Missile3D.txt)
+    trackeval_save_path = os.path.join(final_save_dir, f"{source_folder_name}.txt")
+
     # =========================================================
     # 2. 初始化视觉模型 (YOLOX)
     # =========================================================
@@ -89,6 +92,8 @@ def main():
     colors = np.random.randint(0, 255, size=(100, 3), dtype=np.uint8)
 
     frame_id = 0
+    trackeval_results = []  # 💡 新增：初始化一个列表，用于收集当前视频所有帧的轨迹数据
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -109,11 +114,18 @@ def main():
         else:
             online_targets = []
 
-        # --- C. 画图渲染 ---
+        # --- C. 画图渲染与评估数据提取 ---
         for t in online_targets:
             tlwh = t.tlwh
             tid = t.track_id
             score = t.score
+
+            # 💡 新增：按照 MOT17 标准格式收集数据 (Frame_ID 从 1 开始计算)
+            # 格式: frame_id, track_id, x, y, w, h, score, -1, -1, -1
+            trackeval_results.append(
+                f"{frame_id + 1},{tid},{tlwh[0]:.2f},{tlwh[1]:.2f},{tlwh[2]:.2f},{tlwh[3]:.2f},{score:.2f},-1,-1,-1\n"
+            )
+
             color = colors[tid % 100].tolist()
             cv2.rectangle(frame, (int(tlwh[0]), int(tlwh[1])), (int(tlwh[0] + tlwh[2]), int(tlwh[1] + tlwh[3])), color,
                           3)
@@ -124,15 +136,24 @@ def main():
         frame_id += 1
         if frame_id % 30 == 0: logger.info(f"▶️ 已处理 {frame_id} 帧")
 
+    # =========================================================
+    # 5. 生成溯源与评估文件
+    # =========================================================
     with open(txt_save_path, "w", encoding="utf-8") as f:
         f.write("Original Video Absolute Path:\n")
         f.write(abs_video_path)
+
+    # 💡 新增：将收集到的全过程轨迹数据一次性写入 TrackEval 目标文件
+    with open(trackeval_save_path, "w", encoding="utf-8") as f:
+        f.writelines(trackeval_results)
 
     vid_writer.release()
     cap.release()
     logger.info("-" * 60)
     logger.info(f"🎉 任务完成！共处理了 {frame_id} 帧。")
     logger.info(f"📹 追踪视频 (AVI格式): {video_save_path}")
+    logger.info(f"📄 溯源文件: {txt_save_path}")
+    logger.info(f"📊 TrackEval 数据: {trackeval_save_path}")  # 💡 新增：打印输出路径提示
 
 
 if __name__ == '__main__':

@@ -17,6 +17,8 @@
 | **Exp-006** | 2026-04-19 | `Exp-006 重新训练yolox检测器，检测效果一般，目标会重复检测 | | | |
 | **Exp-007** | 2026-04-19 | `Exp-007 重新训练yolox检测器，检测效果一般，容易漏检，1.4--.v1i.coco | | | |
 | **Exp-007** | 2026-04-20 | `Exp-008 重新训练yolox检测器，roboflow增加图片，1.5--.v1i.coco  | | | |
+| **** | 2026-05-1 | `进行导弹数据集一致性实验前的备份"  | | | |
+| **Exp-009** | 2026-04-20 | `Exp-009 在个人导弹数据集中评估kalmannet| 81.877 | 88.928 |67.777 |
 
 
 
@@ -230,3 +232,40 @@ per class AR:
 | class   | AR     |
 |:--------|:-------|
 | missile | 59.181 |
+
+
+
+###################################################################################################################
+
+
+## 详细数据备份
+### Exp-009
+- **Code Version**: `Exp-009 在个人导弹数据集中评估kalmannet| 81.877 | 88.928 |67.777 |
+					备注：数据集地址 "H:\Code\YOLOX\datasets\MOT17_Missile"
+- **Command**: 
+
+HOTA: YOLOX_ByteTrack-pedestrian   HOTA      DetA      AssA      DetRe     DetPr     AssRe     AssPr     LocA      OWTA      HOTA(0)   LocA(0)   HOTALocA(0)
+MOT17-01-Missile3D                 67.777    68.629    66.944    71.419    84.879    69.38     85.72     85.319    69.101    82.405    83.137    68.51
+COMBINED                           67.777    68.629    66.944    71.419    84.879    69.38     85.72     85.319    69.101    82.405    83.137    68.51
+
+CLEAR: YOLOX_ByteTrack-pedestrian  MOTA      MOTP      MODA      CLR_Re    CLR_Pr    MTR       PTR       MLR       sMOTA     CLR_TP    CLR_FN    CLR_FP    IDSW      MT        PT        ML        Frag
+MOT17-01-Missile3D                 81.877    83.323    83.495    83.819    99.615    50        50        0         67.899    259       50        1         5         1         1         0         16
+COMBINED                           81.877    83.323    83.495    83.819    99.615    50        50        0         67.899    259       50        1         5         1         1         0         16
+
+Identity: YOLOX_ByteTrack-pedestrianIDF1      IDR       IDP       IDTP      IDFN      IDFP
+MOT17-01-Missile3D                 88.928    81.877    97.308    253       56        7
+COMBINED                           88.928    81.877    97.308    253       56        7
+
+Count: YOLOX_ByteTrack-pedestrian  Dets      GT_Dets   IDs       GT_IDs
+MOT17-01-Missile3D                 260       309       8         2
+COMBINED                           260       309       8         2
+
+Timing analysis:
+MotChallenge2DBox.get_raw_seq_data                                     0.0210 sec
+MotChallenge2DBox.get_preprocessed_seq_data                            0.0474 sec
+HOTA.eval_sequence                                                     0.0453 sec
+CLEAR.eval_sequence                                                    0.0140 sec
+Identity.eval_sequence                                                 0.0033 sec
+Count.eval_sequence                                                    0.0000 sec
+eval_sequence                                                          0.1325 sec
+Evaluator.evaluate                                                     1.5261 sec

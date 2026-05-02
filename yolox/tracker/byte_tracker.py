@@ -69,8 +69,11 @@ class STrack(BaseTrack):
         self.start_frame = frame_id
 
     def re_activate(self, new_track, frame_id, new_id=False):
-        self.mean, self.covariance, *_ = self.kalman_filter.update(
-            self.mean, self.covariance, self.tlwh_to_xyah(new_track.tlwh)
+        # 修复：接收并传入 self.kalman_hidden，补上 confidence
+        self.mean, self.covariance, self.kalman_hidden = self.kalman_filter.update(
+            self.mean, self.covariance, self.tlwh_to_xyah(new_track.tlwh),
+            confidence=new_track.score,
+            hidden_state=self.kalman_hidden
         )
         self.tracklet_len = 0
         self.state = TrackState.Tracked
@@ -79,7 +82,6 @@ class STrack(BaseTrack):
         if new_id:
             self.track_id = self.next_id()
         self.score = new_track.score
-
     def update(self, new_track, frame_id):
         """
         Update a matched track
@@ -95,11 +97,12 @@ class STrack(BaseTrack):
         score = new_track.score
 
         # === 修改后KF (带参数) ===
-        self.mean, self.covariance, *_ = self.kalman_filter.update(
+        # 接收返回的 self.kalman_hidden，并将其作为参数传入
+        self.mean, self.covariance, self.kalman_hidden = self.kalman_filter.update(
             self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh),
-            confidence=score  # <--- 原始版必须删掉这行！
+            confidence=score,
+            hidden_state=self.kalman_hidden  # <--- 新增这一行
         )
-
         # # === 修改：原始KF (原始纯净版) ===
         # self.mean, self.covariance, *_ = self.kalman_filter.update(
         #     self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh)
